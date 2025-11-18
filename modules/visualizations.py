@@ -111,21 +111,50 @@ class FractureVisualizer:
     def plot_dfn_2d(self, fractures: List, domain_size: tuple, 
                     fracture_shape: str = 'lines', 
                     show_centers: bool = False, 
-                    show_numbers: bool = False) -> go.Figure:
+                    show_numbers: bool = False,
+                    color_by_family: bool = False) -> go.Figure:
         """
-        Visualiza DFN 2D
-        
+         Visualiza DFN 2D com suporte a coloração por família
+        ALTERAÇÃO: Dimensões em mm, cores por família
+    
         Args:
             fractures: Lista de Fracture2D
-            domain_size: (largura, altura)
+            domain_size: (largura, altura) em mm
+            fracture_shape: 'lines' ou 'rectangles'
+            show_centers: Mostrar centros das fraturas
+            show_numbers: Mostrar numeração
+            color_by_family: Colorir por família/set
         
         Returns:
             Figura Plotly
         """
         fig = go.Figure()
+
+        fig = go.Figure()
+    
+        # Paleta de cores para famílias (tons vibrantes)
+        family_colors = [
+            '#E74C3C',  # Vermelho
+            '#3498DB',  # Azul
+            '#2ECC71',  # Verde
+            '#F39C12',  # Laranja
+            '#9B59B6',  # Roxo
+            '#1ABC9C',  # Turquesa
+        ]
         
+        # Cores padrão mais vibrantes para visualização 2D
+        default_colors = ['#34495E', '#16A085', '#E67E22', '#8E44AD']
+
         # Adicionar fraturas
         for i, frac in enumerate(fractures):
+            # Determinar cor
+            if color_by_family and hasattr(frac, 'family'):
+                color = family_colors[frac.family % len(family_colors)]
+                family_label = f"Fam. {frac.family + 1}"
+            else:
+                color = default_colors[i % len(default_colors)]
+                family_label = ""
+
             # 1. Visualização da Fratura (Linha/Retângulo)
             if fracture_shape == 'lines':
                 # Linha da fratura
@@ -134,48 +163,45 @@ class FractureVisualizer:
                     y=[frac.y1, frac.y2],
                     mode='lines',
                     line=dict(
-                        color='black',
-                        width=max(1, frac.aperture * 1000)  # Espessura proporcional
+                        color=color,
+                        width=max(2, frac.aperture * 0.5)  # Escala para mm
                     ),
-                    showlegend=False,
+                    name=family_label if family_label and i < 3 else None,
+                    showlegend=(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
+                    legendgroup=family_label,
                     hovertemplate=(
                         f'Fratura {i+1}<br>'
-                        f'Comprimento: {frac.length:.3f} m<br>'
-                        f'Abertura: {frac.aperture*1000:.2f} mm<br>'
+                        f'{family_label}<br>' if family_label else '' +
+                        f'Comprimento: {frac.length:.2f} mm<br>'
+                        f'Abertura: {frac.aperture:.2f} mm<br>'
                         f'Orientação: {frac.orientation:.1f}°<extra></extra>'
                     )
                 ))
-            elif fracture_shape == 'rectangles':
-                # Implementação simplificada de retângulo (apenas para visualização)
-                # O DFN 2D gera linhas, mas o usuário pediu "Retângulos"
-                # Usaremos a abertura para dar espessura à linha
                 
-                # Calcular o vetor normal à fratura
+            elif fracture_shape == 'rectangles':
                 dx = frac.x2 - frac.x1
                 dy = frac.y2 - frac.y1
                 length = np.sqrt(dx**2 + dy**2)
                 
                 if length > 0:
-                    # Vetor unitário perpendicular (normal)
                     nx = -dy / length
                     ny = dx / length
                     
                     half_aperture = frac.aperture / 2.0
                     
-                    # Coordenadas dos 4 cantos do retângulo
                     x_rect = [
                         frac.x1 + nx * half_aperture,
                         frac.x2 + nx * half_aperture,
                         frac.x2 - nx * half_aperture,
                         frac.x1 - nx * half_aperture,
-                        frac.x1 + nx * half_aperture # Fechar o polígono
+                        frac.x1 + nx * half_aperture
                     ]
                     y_rect = [
                         frac.y1 + ny * half_aperture,
                         frac.y2 + ny * half_aperture,
                         frac.y2 - ny * half_aperture,
                         frac.y1 - ny * half_aperture,
-                        frac.y1 + ny * half_aperture # Fechar o polígono
+                        frac.y1 + ny * half_aperture
                     ]
                     
                     fig.add_trace(go.Scatter(
@@ -183,18 +209,21 @@ class FractureVisualizer:
                         y=y_rect,
                         mode='lines',
                         fill='toself',
-                        fillcolor='rgba(0, 0, 0, 0.5)',
-                        line=dict(color='black', width=1),
-                        showlegend=False,
+                        fillcolor=f'rgba{tuple(list(int(color[i:i+2], 16) for i in (1, 3, 5)) + [0.6])}',
+                        line=dict(color=color, width=2),
+                        name=family_label if family_label and i < 3 else None,
+                        showlegend=(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
+                        legendgroup=family_label,
                         hovertemplate=(
                             f'Fratura {i+1}<br>'
-                            f'Comprimento: {frac.length:.3f} m<br>'
-                            f'Abertura: {frac.aperture*1000:.2f} mm<br>'
+                            f'{family_label}<br>' if family_label else '' +
+                            f'Comprimento: {frac.length:.2f} mm<br>'
+                            f'Abertura: {frac.aperture:.2f} mm<br>'
                             f'Orientação: {frac.orientation:.1f}°<extra></extra>'
                         )
                     ))
             
-            # 2. Visualização dos Centros
+            # 2. Centros e numeração
             if show_centers or show_numbers:
                 # Calcular o centro da fratura (ponto médio)
                 center_x = (frac.x1 + frac.x2) / 2.0
@@ -206,65 +235,95 @@ class FractureVisualizer:
                         y=[center_y],
                         mode='markers',
                         marker=dict(
-                            size=8,
-                            color='magenta', # Cor viva
-                            symbol='circle-open'
+                            size=6, #8,
+                            color= 'white', #'magenta', # Cor viva
+                            symbol='circle', #'circle-open'
+                            line=dict(color=color, width=2)
                         ),
-                        name=f'Centro Fratura {i+1}',
+                        #name=f'Centro Fratura {i+1}',
                         showlegend=False,
                         hovertemplate=f'Centro Fratura {i+1}<extra></extra>'
                     ))
                 
-                # 3. Visualização da Numeração
+                
+                # if show_numbers:
+                #     fig.add_annotation(
+                #         x=center_x,
+                #         y=center_y,
+                #         text=str(i + 1),
+                #         showarrow=False,
+                #         font=dict(
+                #             size=12,
+                #             color="red" # Cor viva para o número
+                #         ),
+                #         xshift=5, # Deslocamento para não ficar exatamente no centro
+                #         yshift=5
+                #     )
                 if show_numbers:
                     fig.add_annotation(
                         x=center_x,
                         y=center_y,
                         text=str(i + 1),
                         showarrow=False,
-                        font=dict(
-                            size=12,
-                            color="red" # Cor viva para o número
-                        ),
-                        xshift=5, # Deslocamento para não ficar exatamente no centro
-                        yshift=5
+                        font=dict(size=10, color='white', family='Arial Black'),
+                        bgcolor=color,
+                        opacity=0.8,
+                        borderpad=2
                     )
         
-        # O formato 'Discos' não se aplica a DFN 2D gerado por linhas, 
-        # mas a função plot_dfn_3d já usa discos.
-        # A opção 'lines' é o padrão para DFN 2D.
-        # Se o usuário selecionar 'Discos' em 2D, trataremos como 'lines' ou ignoraremos.
-        # Como a função é plot_dfn_2d, vamos focar em linhas e retângulos.
-        # Por enquanto, se for 'discos', faremos o padrão 'lines' para 2D.
-        if fracture_shape == 'discs':
-            # Adicionar um aviso ou simplesmente usar 'lines'
-            pass
-        
-        # Fim da lógica de visualização
-        
-        # Adicionar bordas do domínio
+         # Borda do domínio
+        # width, height = domain_size
+        # fig.add_shape(
+        #     type="rect",
+        #     x0=0, y0=0, x1=width, y1=height,
+        #     line=dict(color="red", width=2, dash="dash"),
+        #     fillcolor="rgba(255,255,255,0)"
+        # )
         width, height = domain_size
         fig.add_shape(
             type="rect",
             x0=0, y0=0, x1=width, y1=height,
-            line=dict(color="red", width=2, dash="dash"),
+            line=dict(color="#2C3E50", width=3, dash="dash"),
             fillcolor="rgba(255,255,255,0)"
         )
+
         
         # Layout
+        # fig.update_layout(
+        #     title=f'Rede de Fraturas Discretas 2D ({len(fractures)} fraturas)',
+        #     xaxis_title='X (m)',
+        #     yaxis_title='Y (m)',
+        #     xaxis=dict(
+        #         scaleanchor="y",
+        #         scaleratio=1,
+        #         range=[-width*0.1, width*1.1]
+        #     ),
+        #     yaxis=dict(range=[-height*0.1, height*1.1]),
+        #     template='plotly_white',
+        #     showlegend=False,
+        #     hovermode='closest'
+        # )
+            # Layout
         fig.update_layout(
             title=f'Rede de Fraturas Discretas 2D ({len(fractures)} fraturas)',
-            xaxis_title='X (m)',
-            yaxis_title='Y (m)',
+            xaxis_title='X (mm)',
+            yaxis_title='Y (mm)',
             xaxis=dict(
                 scaleanchor="y",
                 scaleratio=1,
-                range=[-width*0.1, width*1.1]
+                range=[-width*0.05, width*1.05],
+                showgrid=True,
+                gridcolor='lightgray'
             ),
-            yaxis=dict(range=[-height*0.1, height*1.1]),
+            yaxis=dict(
+                range=[-height*0.05, height*1.05],
+                showgrid=True,
+                gridcolor='lightgray'
+            ),
+            plot_bgcolor='white',
             template='plotly_white',
-            showlegend=False,
-            hovermode='closest'
+            hovermode='closest',
+            height=600
         )
         
         return fig
@@ -345,8 +404,8 @@ class FractureVisualizer:
                     y=[p1[1], p2[1]],
                     z=[p1[2], p2[2]],
                     mode='lines',
-                    #line=dict(color=color, width=6),
-
+                    line=dict(color=color, width=6),
+                    
                     showlegend=False,
                     hovertemplate=(
                         f'Fratura {idx+1}<br>'

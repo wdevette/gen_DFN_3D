@@ -15,6 +15,14 @@ from modules.intensity_spacing import IntensitySpacingAnalyzer
 from modules.dfn_generator import DFNGenerator
 from modules.visualizations import FractureVisualizer
 from modules.results_exporter import ResultsExporter
+from func_tools import force_dark_plotly_layout
+
+from modules.orientation_clustering import (
+    cluster_orientations_2d, 
+    cluster_orientations_3d,
+    extract_orientation_stats,
+    auto_determine_n_sets
+)
 
 # Configuração da página
 st.set_page_config(
@@ -164,18 +172,18 @@ with tab1:
             
             st.markdown("##### ⚙️ Parâmetros da Imagem")
             image_area = st.number_input(
-                "Área da imagem (m²)",
+                "Área da imagem (mm²)",
                 min_value=0.01,
-                value=1.0,
-                step=0.01,
+                value=1000000.0,  # MUDOU: era 1.0, agora 1m² = 1000000mm²
+                step=100.0,
                 help="Área real representada pela imagem analisada",
                 key="img_area"
             )
             
-            pixel_per_m = st.number_input(
-                "Resolução/Escala (pixels/m)",
-                min_value=1.0,
-                value=100.0,
+            pixel_per_mm = st.number_input(
+                "Resolução/Escala (pixels/mm)",
+                min_value=0.1,
+                value=10.0, # MUDOU: era 100.0 pixels/m, agora 10 pixels/mm
                 step=1.0,
                 help="Número de pixels por metro na imagem",
                 key="pixel_scale"
@@ -195,21 +203,21 @@ with tab1:
         with col2:                        
             st.markdown("##### 🔍 Filtros de Dados")
             l_min = st.number_input(
-                "Comprimento mínimo (m)", 
+                "Comprimento mínimo (mm)", 
                 min_value=0.0, 
-                value=0.001, 
-                step=0.001,
-                format="%.3f",
+                value=1.0, #0.001, 
+                step=0.1, #0.001,
+                format="%.1f",  #"%.3f",
                 help="Filtrar fraturas menores que este valor",
                 key="l_min_framfrat"
             )
             
             b_min = st.number_input(
-                "Abertura mínima (m)", 
+                "Abertura mínima (mm)", 
                 min_value=0.0, 
-                value=0.0001, 
-                step=0.0001,
-                format="%.4f",
+                value=0.1, #0.0001, 
+                step=0.1, #0.0001,
+                format="%.2f", #"%.4f",
                 help="Filtrar fraturas com abertura menor que este valor",
                 key="b_min_framfrat"
             )
@@ -221,7 +229,7 @@ with tab1:
                         framfrat_data = loader.load_framfrat(
                             uploaded_framfrat,
                             image_area,
-                            pixel_per_m
+                            pixel_per_mm
                         )
                         st.session_state.framfrat_data = framfrat_data
                         st.session_state.data_loaded = True
@@ -254,14 +262,20 @@ with tab1:
                 # Criar DataFrame para display com unidades corretas
                 display_df = pd.DataFrame({
                     'ID_Fratura': preview_df['ID_Fratura'],
-                    'Comprimento (m)': preview_df['length'].round(4),
-                    'Abertura (mm)': (preview_df['aperture'] * 1000).round(2)
+                    'Comprimento (mm)': preview_df['length'],
+                    'Abertura (mm)': (preview_df['aperture'])
                 })
+
+                display_df['Comprimento (mm)'] = display_df['Comprimento (mm)'] \
+                    .apply(lambda x: f"{x:.2f}".replace('.', ','))
+
+                display_df['Abertura (mm)'] = display_df['Abertura (mm)'] \
+                    .apply(lambda x: f"{x:.4f}".replace('.', ','))
                 
                 # Se houver 'ID_Segmento' válido, insere e reordena para ficar como 2ª coluna
                 if show_segmento:
                     display_df["ID_Segmento"] = preview_df["ID_Segmento"]
-                    desired_order = ["ID_Fratura", "ID_Segmento", "Comprimento (m)", "Abertura (mm)"]
+                    desired_order = ["ID_Fratura", "ID_Segmento", "Comprimento (mm)", "Abertura (mm)"]
                     display_df = display_df.reindex(columns=desired_order)
 
                 st.dataframe(display_df, hide_index=True)
@@ -278,12 +292,12 @@ with tab1:
                 with col2:
                     st.metric(
                         "Compr. médio", 
-                        f"{framfrat_data['length'].mean():.3f} m"
+                        f"{framfrat_data['length'].mean():.3f} mm".replace(".", ",")
                     )
                 with col3:
                     st.metric(
                         "Abertura média", 
-                        f"{framfrat_data['aperture'].mean()*1000:.2f} mm"
+                        f"{framfrat_data['aperture'].mean():.4f} mm".replace(".", ",")
                     )
                 
                 # Estatísticas adicionais
@@ -292,17 +306,17 @@ with tab1:
                 
                 stats_df = pd.DataFrame({
                     'Métrica': ['Mínimo', 'Máximo', 'Mediana', 'Desvio Padrão'],
-                    'Comprimento (m)': [
-                        f"{framfrat_data['length'].min():.4f}",
-                        f"{framfrat_data['length'].max():.4f}",
-                        f"{framfrat_data['length'].median():.4f}",
-                        f"{framfrat_data['length'].std():.4f}"
+                    'Comprimento (mm)': [
+                        f"{framfrat_data['length'].min():.4f}".replace(".", ","),
+                        f"{framfrat_data['length'].max():.4f}".replace(".", ","),
+                        f"{framfrat_data['length'].median():.4f}".replace(".", ","),
+                        f"{framfrat_data['length'].std():.4f}".replace(".", ",")
                     ],
                     'Abertura (mm)': [
-                        f"{framfrat_data['aperture'].min()*1000:.3f}",
-                        f"{framfrat_data['aperture'].max()*1000:.3f}",
-                        f"{framfrat_data['aperture'].median()*1000:.3f}",
-                        f"{framfrat_data['aperture'].std()*1000:.3f}"
+                        f"{framfrat_data['aperture'].min():.4f}".replace(".", ","),
+                        f"{framfrat_data['aperture'].max():.4f}".replace(".", ","),
+                        f"{framfrat_data['aperture'].median():.4f}".replace(".", ","),
+                        f"{framfrat_data['aperture'].std():.4f}".replace(".", ",")
                     ]
                 })
                 st.table(stats_df)
@@ -461,148 +475,280 @@ with tab1:
 
 # Tab 2: Ajustes de Lei de Potência
 with tab2:
-    st.header("📈 Lei de Potência")
+    st.header("🧩 Lei de Potência e Famílias de Fraturas")
     
-    if st.session_state.data_loaded:
-        # Seletor de método de ajuste
-        st.subheader("⚙️ Configuração de Ajuste para Lei de Potência")
-        
-        col_config1, col_config2 = st.columns([0.4, 1])
-        
-        with col_config1:
-            fit_method = st.selectbox(
-                "Selecione o Método de ajuste", 
-                [None, "OLS", "MLE"],
-                format_func=lambda x: "Selecione um método" if x is None else f"{x} ({'log-log' if x == 'OLS' else 'Clauset et al.'})",
-                help="OLS: Mínimos quadrados ordinários em escala log-log\nMLE: Máxima verossimilhança (Clauset et al. 2009)"
-            )
-        
-        with col_config2:
-            if fit_method:
-                st.markdown("")
-                st.info(f"✔ Método: **{fit_method}**")
-        
-        if fit_method is None:
-            st.warning("⚠️ Por favor, selecione um método de ajuste para continuar")
-        else:
-            st.divider()
+    if st.session_state.data_loaded:   
+
+        tab_powerL, tab_fratFam = st.tabs(['Lei de Potência', 'Famílias de Fraturas'])
+
+        with tab_powerL:
+
+            # Seletor de método de ajuste
+            st.subheader("⚙️ Configuração de Ajuste para Lei de Potência")
+
+            col_config1, col_config2 = st.columns([0.4, 1])
+            with col_config1:
+                fit_method = st.selectbox(
+                    "Selecione o Método de ajuste", 
+                    [None, "OLS", "MLE"],
+                    format_func=lambda x: "Selecione um método" if x is None else f"{x} ({'log-log' if x == 'OLS' else 'Clauset et al.'})",
+                    help="OLS: Mínimos quadrados ordinários em escala log-log\nMLE: Máxima verossimilhança (Clauset et al. 2009)"
+                )
             
-            fitter = PowerLawFitter()
-            viz = FractureVisualizer()
+            with col_config2:
+                if fit_method:
+                    st.markdown("")
+                    st.info(f"✔ Método: **{fit_method}**")
             
-            # Obter valores de filtro
-            if 'l_min_framfrat' in st.session_state:
-                l_min = st.session_state.l_min_framfrat
+            if fit_method is None:
+                st.warning("⚠️ Por favor, selecione um método de ajuste para continuar")
+           
             else:
-                l_min = 0.001
+                #st.divider()
+                fitter = PowerLawFitter()
+                viz = FractureVisualizer()
+                st.markdown('chegou')
+                # Obter valores de filtro
+                if 'l_min_framfrat' in st.session_state:
+                    l_min = st.session_state.l_min_framfrat
+                else:
+                    l_min = 0.001
+                    
+                if 'b_min_framfrat' in st.session_state:
+                    b_min = st.session_state.b_min_framfrat
+                else:
+                    b_min = 0.0001
+            
+                # Ajustar leis de potência
+                results = {}
                 
-            if 'b_min_framfrat' in st.session_state:
-                b_min = st.session_state.b_min_framfrat
+                
+                col1, col2, col3 = st.columns(3)
+                with col1: # Comprimento
+                    st.subheader("Comprimento (l)")
+                    if st.session_state.framfrat_data is not None:
+                        l_fit = fitter.fit_power_law(
+                            st.session_state.framfrat_data['length'].values,
+                            l_min,
+                            method=fit_method
+                        )
+                        results['length_fit'] = l_fit
+                        
+                        fig_l = viz.plot_power_law_fit(
+                            st.session_state.framfrat_data['length'].values,
+                            l_fit
+                        )
+
+                        # força tema escuro sem perder tuas configs essenciais
+                        fig_l = force_dark_plotly_layout(fig_l)
+                        st.plotly_chart(fig_l, width='stretch')
+                        
+                        # Mostrar métricas apropriadas baseadas no método
+                        if fit_method == "OLS":
+                            st.info(f"""
+                            **Parâmetros ajustados:**
+                            - Expoente (e): {l_fit['exponent']:.3f}
+                            - Coeficiente (h): {l_fit['coefficient']:.2e}
+                            - R²: {l_fit['r_squared']:.3f}
+                            - p-valor: {l_fit['p_value']:.4f}
+                            """)
+                        else:  # MLE
+                            st.info(f"""
+                            **Parâmetros ajustados:**
+                            - Expoente ($\\alpha$): {l_fit['exponent']:.3f}
+                            - Coeficiente: {l_fit['coefficient']:.2e}
+                            - Estatística KS: {l_fit['ks_statistic']:.3f}
+                            - Erro padrão: {l_fit['sigma']:.3f}
+                            """)
+                
+                # Abertura
+                with col2:
+                    st.subheader("Abertura (b)")
+                    if st.session_state.framfrat_data is not None:
+                        b_fit = fitter.fit_power_law(
+                            st.session_state.framfrat_data['aperture'].values,
+                            b_min,
+                            method=fit_method
+                        )
+                        results['aperture_fit'] = b_fit
+                        
+                        fig_b = viz.plot_power_law_fit(
+                            st.session_state.framfrat_data['aperture'].values,
+                            b_fit
+                        )
+
+                        fig_b = force_dark_plotly_layout(fig_b)
+                        st.plotly_chart(fig_b, width='stretch')
+                        
+                        # Mostrar métricas apropriadas
+                        if fit_method == "OLS":
+                            st.info(f"""
+                            **Parâmetros ajustados:**
+                            - Expoente (c): {b_fit['exponent']:.3f}
+                            - Coeficiente (a): {b_fit['coefficient']:.2e}
+                            - R²: {b_fit['r_squared']:.3f}
+                            - p-valor: {b_fit['p_value']:.4f}
+                            """)
+                        else:  # MLE
+                            st.info(f"""
+                            **Parâmetros ajustados:**
+                            - Expoente ($\\alpha$): {b_fit['exponent']:.3f}
+                            - Coeficiente: {b_fit['coefficient']:.2e}
+                            - Estatística KS: {b_fit['ks_statistic']:.3f}
+                            - Erro padrão: {b_fit['sigma']:.3f}
+                            """)
+                
+                # Relação b-l
+                with col3:
+                    st.subheader("Relação b-l")
+                    if st.session_state.framfrat_data is not None:
+                        bl_fit = fitter.fit_aperture_length_relation(
+                            st.session_state.framfrat_data['aperture'].values,
+                            st.session_state.framfrat_data['length'].values
+                        )
+                        results['bl_relation'] = bl_fit
+                        
+                        fig_bl = viz.plot_aperture_length_relation(
+                            st.session_state.framfrat_data['aperture'].values,
+                            st.session_state.framfrat_data['length'].values,
+                            bl_fit
+                        )
+
+                        fig_bl = force_dark_plotly_layout(fig_bl)
+                        st.plotly_chart(fig_bl, width='stretch')
+                        
+                        st.info(f"""
+                        **Relação b = g·l^m:**
+                        - Expoente (m): {bl_fit['m']:.3f}
+                        - Coeficiente (g): {bl_fit['g']:.2e}
+                        - R²: {bl_fit['r_squared']:.3f}
+                        - p-valor: {bl_fit['p_value']:.4f}
+                        """)
+                
+                # Salvar resultados
+                st.session_state.analysis_results = results
+    
+
+        with tab_fratFam:
+            st.subheader("🔄 Análise de Famílias de Fraturas")
+                    # Verificar se há dados de orientação
+            if 'orientation' in st.session_state.framfrat_data.columns:
+                orientations = st.session_state.framfrat_data['orientation'].dropna().values
+                
+                if len(orientations) > 10:
+                    col1, col2 = st.columns([1, 2])
+                    
+                    with col1:
+                        st.markdown("##### ⚙️ Configuração de Famílias")
+                        
+                        # Opção para determinar automaticamente ou manual
+                        auto_sets = st.checkbox(
+                            "Determinar número de famílias automaticamente",
+                            value=False,
+                            help="Usa método do cotovelo para determinar número ótimo de famílias"
+                        )
+                        
+                        if auto_sets:
+                            n_sets = auto_determine_n_sets(orientations, max_sets=4)
+                            st.info(f"✓ Número ótimo detectado: **{n_sets} famílias/sets**")
+                        else:
+                            n_sets = st.selectbox(
+                                "Número de famílias (sets)",
+                                options=[1, 2, 3, 4],
+                                index=1,  # Default: 2 famílias
+                                help="Número de famílias distintas de fraturas | por definição 2 famílias/sets."
+                            )
+                        
+                        # Clusterizar
+                        fisher_params = cluster_orientations_2d(orientations, n_sets=n_sets)
+                        family_stats = extract_orientation_stats(fisher_params, dimension='2d')
+                        
+                        # Salvar no session_state para uso posterior
+                        st.session_state.fracture_families = family_stats
+                        st.session_state.fisher_params = fisher_params
+                        
+                        st.success(f"✅ {len(family_stats)} famílias identificadas")
+                    
+                    with col2:
+                        st.markdown("##### 📊 Estatísticas das Famílias")
+                        
+                        # Criar DataFrame com estatísticas
+                        stats_df = pd.DataFrame([{
+                            'Família': f"Set {s['family_id'] + 1}",
+                            'Orientação Média (°)': f"{s['orientation_mean']:.1f}",
+                            'Desvio Padrão (°)': f"{s['orientation_std']:.1f}",
+                            'N° Fraturas': s['n_fractures'],
+                            'Percentual (%)': f"{s['percentage']:.1f}"
+                        } for s in family_stats])
+                        
+                        st.dataframe(stats_df, hide_index=True, width='stretch')
+                        
+                        # Diagrama de roseta colorido por família
+                        fig_rose = go.Figure()
+                        
+                        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+                        
+                        for i, family in enumerate(family_stats):
+                            # Filtrar orientações desta família
+                            family_mask = np.abs(
+                                (orientations - family['orientation_mean'] + 180) % 360 - 180
+                            ) < 2 * family['orientation_std']
+                            
+                            family_orients = orientations[family_mask]
+                            
+                            if len(family_orients) > 0:
+                                counts, bin_edges = np.histogram(
+                                    family_orients, 
+                                    bins=36, 
+                                    range=(0, 360)
+                                )
+                                theta = (bin_edges[:-1] + bin_edges[1:]) / 2
+                                
+                                fig_rose.add_trace(go.Barpolar(
+                                    r=counts,
+                                    theta=theta,
+                                    width=10,
+                                    marker_color=colors[i % len(colors)],
+                                    name=f'Set {i+1}',
+                                    opacity=0.7
+                                ))
+                        
+                        dark_style = dict(
+                            paper_bgcolor="#0f1112",
+                            plot_bgcolor="#0f1112",
+                            font=dict(size=12, color="white"),
+                            polar=dict(
+                                bgcolor="#111316",
+                                angularaxis=dict(
+                                    direction="clockwise",
+                                    rotation=90,
+                                    tickfont=dict(color="white"),
+                                    gridcolor="#333333",
+                                    linecolor="white",
+                                    tickcolor="white"
+                                ),
+                                radialaxis=dict(visible=True,
+                                    tickfont=dict(color="white"),
+                                    gridcolor="#333333",
+                                    linecolor="white"
+                                )
+                            ),
+                            legend=dict(font=dict(color="white"), bgcolor="rgba(0,0,0,0.2)")
+                        )
+
+                        fig_rose.update_layout(
+                            title='Diagrama de Roseta - Famílias de Fraturas',
+                            showlegend=True,
+                            height=500,
+                            **dark_style
+                        )
+                        
+                        st.plotly_chart(fig_rose, width='stretch')
+                else:
+                    st.warning("⚠️ Poucos dados de orientação disponíveis para análise de famílias")
             else:
-                b_min = 0.0001
-            
-            # Ajustar leis de potência
-            results = {}
-            
-            col1, col2, col3 = st.columns(3)
-            
-            # Comprimento
-            with col1:
-                st.subheader("Comprimento (l)")
-                if st.session_state.framfrat_data is not None:
-                    l_fit = fitter.fit_power_law(
-                        st.session_state.framfrat_data['length'].values,
-                        l_min,
-                        method=fit_method
-                    )
-                    results['length_fit'] = l_fit
-                    
-                    fig_l = viz.plot_power_law_fit(
-                        st.session_state.framfrat_data['length'].values,
-                        l_fit
-                    )
-                    st.plotly_chart(fig_l, width='stretch')
-                    
-                    # Mostrar métricas apropriadas baseadas no método
-                    if fit_method == "OLS":
-                        st.info(f"""
-                        **Parâmetros ajustados:**
-                        - Expoente (e): {l_fit['exponent']:.3f}
-                        - Coeficiente (h): {l_fit['coefficient']:.2e}
-                        - R²: {l_fit['r_squared']:.3f}
-                        - p-valor: {l_fit['p_value']:.4f}
-                        """)
-                    else:  # MLE
-                        st.info(f"""
-                        **Parâmetros ajustados:**
-                        - Expoente ($\\alpha$): {l_fit['exponent']:.3f}
-                        - Coeficiente: {l_fit['coefficient']:.2e}
-                        - Estatística KS: {l_fit['ks_statistic']:.3f}
-                        - Erro padrão: {l_fit['sigma']:.3f}
-                        """)
-            
-            # Abertura
-            with col2:
-                st.subheader("Abertura (b)")
-                if st.session_state.framfrat_data is not None:
-                    b_fit = fitter.fit_power_law(
-                        st.session_state.framfrat_data['aperture'].values,
-                        b_min,
-                        method=fit_method
-                    )
-                    results['aperture_fit'] = b_fit
-                    
-                    fig_b = viz.plot_power_law_fit(
-                        st.session_state.framfrat_data['aperture'].values,
-                        b_fit
-                    )
-                    st.plotly_chart(fig_b, width='stretch')
-                    
-                    # Mostrar métricas apropriadas
-                    if fit_method == "OLS":
-                        st.info(f"""
-                        **Parâmetros ajustados:**
-                        - Expoente (c): {b_fit['exponent']:.3f}
-                        - Coeficiente (a): {b_fit['coefficient']:.2e}
-                        - R²: {b_fit['r_squared']:.3f}
-                        - p-valor: {b_fit['p_value']:.4f}
-                        """)
-                    else:  # MLE
-                        st.info(f"""
-                        **Parâmetros ajustados:**
-                        - Expoente ($\\alpha$): {b_fit['exponent']:.3f}
-                        - Coeficiente: {b_fit['coefficient']:.2e}
-                        - Estatística KS: {b_fit['ks_statistic']:.3f}
-                        - Erro padrão: {b_fit['sigma']:.3f}
-                        """)
-            
-            # Relação b-l
-            with col3:
-                st.subheader("Relação b-l")
-                if st.session_state.framfrat_data is not None:
-                    bl_fit = fitter.fit_aperture_length_relation(
-                        st.session_state.framfrat_data['aperture'].values,
-                        st.session_state.framfrat_data['length'].values
-                    )
-                    results['bl_relation'] = bl_fit
-                    
-                    fig_bl = viz.plot_aperture_length_relation(
-                        st.session_state.framfrat_data['aperture'].values,
-                        st.session_state.framfrat_data['length'].values,
-                        bl_fit
-                    )
-                    st.plotly_chart(fig_bl, width='stretch')
-                    
-                    st.info(f"""
-                    **Relação b = g·l^m:**
-                    - Expoente (m): {bl_fit['m']:.3f}
-                    - Coeficiente (g): {bl_fit['g']:.2e}
-                    - R²: {bl_fit['r_squared']:.3f}
-                    - p-valor: {bl_fit['p_value']:.4f}
-                    """)
-            
-            # Salvar resultados
-            st.session_state.analysis_results = results
+                st.info("ℹ️ Dados de orientação não disponíveis neste dataset")
+
     else:
         st.info("📊 Por favor, carregue os dados primeiro na aba 'Dados'")
 
@@ -818,7 +964,7 @@ with tab4:
             
             # Semente aleatória
             random_seed_2d = st.number_input(
-                "ðŸŽ² Semente aleatória", 
+                "🎲 Semente aleatória", 
                 min_value=0, 
                 value=42,
                 help="Para reprodutibilidade da geração",
@@ -829,18 +975,26 @@ with tab4:
             
             # Domínio
             domain_width = st.number_input(
-                "Largura do domínio (m)",
-                min_value=0.1,
+                "Largura do domínio (mm)",
+                min_value=10.0, # 0.1,
                 value=float(np.sqrt(image_area)),
-                step=0.1
+                step=10.0 # 0.1
             )
             
             domain_height = st.number_input(
                 "Altura do domínio (m)",
-                min_value=0.1,
+                min_value=10.0, #0.1,
                 value=float(np.sqrt(image_area)),
-                step=0.1
+                step=10.0 #0.1
             )
+
+             # NOVO: Usar famílias identificadas
+            use_families = st.checkbox(
+                "Usar famílias identificadas",
+                value=True if hasattr(st.session_state, 'fracture_families') else False,
+                help="Gerar fraturas respeitando as famílias identificadas na análise"
+            )
+
             
             # Número de fraturas
             n_fractures = st.number_input(
@@ -883,7 +1037,7 @@ with tab4:
             
             # Botão de gerar
             generate_2d = st.button(
-                "ðŸŽ² Gerar DFN 2D",
+                "🎲 Gerar DFN 2D",
                 type="primary",
                 width='stretch'
             )
@@ -894,6 +1048,19 @@ with tab4:
                     # Usar a semente específica desta aba
                     generator = DFNGenerator(random_seed_2d)
                     viz = FractureVisualizer()
+
+                    # Preparar famílias se usar
+                    families = None
+                    if use_families and hasattr(st.session_state, 'fracture_families'):
+                        from modules.dfn_generator import FractureFamily
+                        families = [
+                            FractureFamily(
+                                orientation_mean=f['orientation_mean'],
+                                orientation_std=f['orientation_std'],
+                                weight=f['percentage'] / 100
+                            )
+                            for f in st.session_state.fracture_families
+                        ]
                     
                     # Preparar parâmetros
                     if use_fitted and 'length_fit' in st.session_state.analysis_results:
@@ -916,24 +1083,26 @@ with tab4:
                     else:
                         params = {
                             'exponent': 2.0,
-                            'x_min': 0.01,
+                            'x_min': 10.0, #mm #0.01,
                             'coefficient': 100
                         }
                     
-                    # Gerar DFN
+                    # Gerar DFN com famílias
                     dfn_2d = generator.generate_2d_dfn(
                         params=params,
                         domain_size=(domain_width, domain_height),
-                        n_fractures=n_fractures
+                        n_fractures=n_fractures,
+                        families=families
                     )
                     
-                           # Visualizar DFN
+                    # Visualizar com cores por família
                     fig_dfn = viz.plot_dfn_2d(
-                    dfn_2d,
-                    (domain_width, domain_height),
-                    fracture_shape=fracture_shape_2d,
-                    show_centers=show_centers_2d,
-                    show_numbers=show_numbers_2d
+                        dfn_2d,
+                        (domain_width, domain_height),
+                        fracture_shape=fracture_shape_2d,
+                        show_centers=show_centers_2d,
+                        show_numbers=show_numbers_2d,
+                        color_by_family=use_families
                     )
                     
                     st.plotly_chart(fig_dfn, width='stretch')
@@ -947,21 +1116,26 @@ with tab4:
                     
                     with col1:
                         st.metric("Total de fraturas", len(dfn_2d))
-                        st.metric("Comprimento total (m)", f"{dfn_df['length'].sum():.2f}")
+                        st.metric("Comprimento total (mm)", f"{dfn_df['length'].sum():.2f}".replace(".", ","))
                     
                     with col2:
-                        st.metric("Comprimento médio (m)", f"{dfn_df['length'].mean():.3f}")
-                        st.metric("Abertura média (m)", f"{dfn_df['aperture'].mean():.4f}")
+                        st.metric("Comprimento médio (mm)", f"{dfn_df['length'].mean():.2f}".replace(".", ","))
+                        st.metric("Abertura média (mm)", f"{dfn_df['aperture'].mean():.3f}".replace(".", ","))
                     
                     with col3:
-                        st.metric("P21 (m/m²)", f"{dfn_df['length'].sum() / (domain_width * domain_height):.3f}")
+                        p21 = dfn_df['length'].sum() / (domain_width * domain_height)
+                        st.metric("P21 (mm/mm²)", f"{p21:.4f}".replace(".", ","))
                         porosity = (dfn_df['aperture'] * dfn_df['length']).sum() / (domain_width * domain_height)
-                        st.metric("Porosidade (%)", f"{porosity * 100:.3f}")
+                        st.metric("Porosidade (%)", f"{porosity * 100:.3f}".replace(".", ","))
+
+                        # st.metric("P21 (mm/mm²)", f"{dfn_df['length'].sum() / (domain_width * domain_height):.3f}")
+                        # porosity = (dfn_df['aperture'] * dfn_df['length']).sum() / (domain_width * domain_height)
+                        # st.metric("Porosidade (%)", f"{porosity * 100:.3f}")
                     
                     # Salvar DFN gerado
                     st.session_state.dfn_2d = dfn_2d
     else:
-        st.info("ðŸ“ Por favor, complete as análises anteriores primeiro")
+        st.info("📁Por favor, complete as análises anteriores primeiro")
 
 
 
@@ -971,24 +1145,28 @@ with tab5:
     
     if st.session_state.data_loaded and st.session_state.analysis_results:
         # Obter l_min
-        l_min = st.session_state.get('l_min_framfrat', 0.001)
+        l_min = st.session_state.get('l_min_framfrat', 1.0) #0.001)
         
         st.subheader("Configurações DFN 3D")
 
         col1, col2, col3 = st.columns(3) # DOMÍNIO 3D
-        domain_x = col1.number_input("Dimensão X (m)", min_value=10.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[0], step=1.0)
-        domain_y = col2.number_input("Dimensão Y (m)", min_value=10.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[1], step=1.0)    
-        domain_z = col3.number_input("Dimensão Z (m)", min_value=5.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[2], step=1.0)
+        # domain_x = col1.number_input("Dimensão X (m)", min_value=10.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[0], step=1.0)
+        # domain_y = col2.number_input("Dimensão Y (m)", min_value=10.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[1], step=1.0)    
+        # domain_z = col3.number_input("Dimensão Z (m)", min_value=5.0, value=st.session_state.get('dfn_3d_domain', [100.0, 100.0, 20.0])[2], step=1.0)
+
+        domain_x = col1.number_input("Dimensão X (m)", min_value=100.0, value=st.session_state.get('dfn_3d_domain', [10000.0, 10000.0, 2000.0])[0], step=100.0)
+        domain_y = col2.number_input("Dimensão Y (m)", min_value=100.0, value=st.session_state.get('dfn_3d_domain', [10000.0, 10000.0, 2000.0])[1], step=100.0)    
+        domain_z = col3.number_input("Dimensão Z (m)", min_value=50.0, value=st.session_state.get('dfn_3d_domain', [10000.0, 10000.0, 2000.0])[2], step=100.0)
 
         col_L, col_R = st.columns([1, 1], gap='large')
 
         with col_L:
             # Orientação preferencial
             st.divider()
-            st.write("**Orientação Preferencial**")
+            st.write("**Orientação Preferencial /Set 1**")
             col_left, col_mid= st.columns([1, 1], gap='large')
-            dip_mean = col_left.slider("Dip médio (°)", min_value=0, max_value=90, value=45)
-            dip_dir_mean = col_mid.slider("Dip Direction médio (°)", min_value=0, max_value=360, value=90)
+            dip_mean = col_left.slider("Dip médio (°)", min_value=0, max_value=90, value=45, help="Ângulo de mergulho médio do Set 1")
+            dip_dir_mean = col_mid.slider("Dip Direction médio (°)", min_value=0, max_value=360, value=90, help="Direção de mergulho média do Set 1")
 
         with col_R:
             st.divider()
@@ -1009,6 +1187,91 @@ with tab5:
         
         st.divider()
         
+                # ========== CONFIGURAÇÃO DE FAMÍLIAS 3D ==========
+        st.subheader("🔄 Famílias de Fraturas 3D")
+        
+        col_fam1, col_fam2 = st.columns([1, 2])
+        
+        with col_fam1:
+            use_families_3d = st.checkbox(
+                "Usar múltiplas famílias",
+                value=True,
+                help="Gerar fraturas em múltiplas famílias com orientações distintas",
+                key="use_families_3d"
+            )
+            
+            if use_families_3d:
+                n_families_3d = st.selectbox(
+                    "Número de famílias",
+                    options=[2, 3, 4],
+                    index=0,  # Default: 2 famílias
+                    help="Número de famílias distintas de fraturas",
+                    key="n_families_3d"
+                )
+                
+                st.info(f"✓ Gerando **{n_families_3d} famílias** de fraturas")
+        
+        with col_fam2:
+            if use_families_3d:
+                st.markdown("##### ⚙️ Configuração das Famílias")
+                
+                # Armazenar configurações de cada família
+                if 'family_configs_3d' not in st.session_state:
+                    st.session_state.family_configs_3d = []
+                
+                family_configs = [] # Configuração simplificada das famílias
+                for i in range(n_families_3d):
+                    with st.expander(f"Set {i+1} - Configuração", expanded=(i==0)):
+                        col_a, col_b, col_c = st.columns(3)
+                        
+                        # Orientações padrão distribuídas uniformemente
+                        default_dip = dip_mean if i == 0 else 45
+                        default_dip_dir = dip_dir_mean + (i * 180 // n_families_3d)
+                        default_weight = 1.0 / n_families_3d
+                        
+                        family_dip = col_a.number_input(
+                            "Dip (°)", 
+                            min_value=0,
+                            max_value=90,
+                            value=default_dip,
+                            step=5,
+                            key=f"family_{i}_dip"
+                        )
+                        
+                        family_dip_dir = col_b.number_input(
+                            "Dip Dir (°)",
+                            min_value=0,
+                            max_value=360,
+                            value=int(default_dip_dir % 360),
+                            step=10,
+                            key=f"family_{i}_dip_dir"
+                        )
+                        
+                        family_weight = col_c.number_input(
+                            "Peso (%)",
+                            min_value=5,
+                            max_value=100,
+                            value=int(default_weight * 100),
+                            step=5,
+                            key=f"family_{i}_weight",
+                            help="Percentual de fraturas desta família"
+                        )
+                        
+                        family_configs.append({
+                            'dip': family_dip,
+                            'dip_dir': family_dip_dir,
+                            'weight': family_weight / 100.0
+                        })
+                
+                # Normalizar pesos
+                total_weight = sum(f['weight'] for f in family_configs)
+                for f in family_configs:
+                    f['weight'] = f['weight'] / total_weight
+                
+                st.session_state.family_configs_3d = family_configs
+        
+        st.divider()
+
         # ========== CONTROLES DE VISUALIZAÇÃO ==========
         st.subheader('🎛️ Controles de Visualização')
         
@@ -1019,18 +1282,16 @@ with tab5:
             st.session_state.show_centers_3d = False
         if 'show_numbers_3d' not in st.session_state:
             st.session_state.show_numbers_3d = False
-        if 'color_by_sets' not in st.session_state:
-            st.session_state.color_by_sets = False
-        if 'num_sets' not in st.session_state:
-            st.session_state.num_sets = None
+        # if 'color_by_sets' not in st.session_state:
+        #     st.session_state.color_by_sets = False
+        # if 'num_sets' not in st.session_state:
+        #     st.session_state.num_sets = None
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
             st.write("**Tipo de visualização das fraturas**")
-            
-            # ACTION: Radio buttons para escolher modo de visualização
-            viz_options = {
+            viz_options = { #Radio Buttons para selação do modo de visualização das fraturas
                 'lines': '📈 Linhas',
                 'rectangles': '⬜ Retângulos', 
                 'ellipsoids': '⭕ Elipsóides'
@@ -1045,12 +1306,11 @@ with tab5:
                 label_visibility='collapsed'
             )
             
-            # ACTION: Atualizar estado quando mudar
+            # Atualizar estado quando mudar algum parametro
             if viz_mode != st.session_state.viz_mode:
                 st.session_state.viz_mode = viz_mode
         
         with col2:
-            # ACTION: Checkbox para numeração
             show_numbers = st.checkbox(
                 '🔢 Numeração das Fraturas',
                 value=st.session_state.show_numbers_3d,
@@ -1064,31 +1324,36 @@ with tab5:
             show_centers = st.checkbox(
                 '🎯 Centros das Fraturas',
                 value=st.session_state.show_centers_3d,
-                help='Mostrar os centros das fraturas',
+                help='Mostrar centros das fraturas',
                 key='show_centers_checkbox'
             )
             if show_centers != st.session_state.show_centers_3d:
                 st.session_state.show_centers_3d = show_centers
         
+        # with col3:
+        #     num_sets = st.selectbox(
+        #         'Número de sets',
+        #         options=[None, 1, 2, 3, 4],
+        #         index=0,
+        #         format_func=lambda x: 'Número de famílias' if x is None else str(x),
+        #         help='Número de famílias das fraturas.',
+        #         key='num_sets_select'
+        #     )
         with col3:
-            # ACTION: Selectbox para número de famílias
-            num_sets = st.selectbox(
-                'Número de sets',
-                options=[None, 1, 2, 3, 4],
-                index=0,
-                format_func=lambda x: 'Número de famílias' if x is None else str(x),
-                help='Número de famílias das fraturas.',
-                key='num_sets_select'
+            color_by_family_3d = st.checkbox(
+                '🎨 Colorir por Família',
+                value=use_families_3d,
+                help='Colorir fraturas de acordo com sua família',
+                key='color_by_family_3d'
             )
-            
-            # ACTION: Ativar coloração por família
-            if num_sets is not None:
-                st.session_state.color_by_sets = True
-                st.session_state.num_sets = num_sets
-            else:
-                st.session_state.color_by_sets = False
-                st.session_state.num_sets = None
 
+            # # ACTION: Ativar coloração por família
+            # if num_sets is not None:
+            #     st.session_state.color_by_sets = True
+            #     st.session_state.num_sets = num_sets
+            # else:
+            #     st.session_state.color_by_sets = False
+            #     st.session_state.num_sets = None
         st.markdown("")
         st.markdown("")
         
@@ -1101,6 +1366,21 @@ with tab5:
         if generate_3d:
             with st.spinner("Gerando DFN 3D..."):
                 generator = DFNGenerator(random_seed_3d)
+
+                # Preparar famílias
+                families_3d = None
+                if use_families_3d and hasattr(st.session_state, 'family_configs_3d'):
+                    from modules.dfn_generator import FractureFamily
+                    
+                    families_3d = []
+                    for config in st.session_state.family_configs_3d:
+                        families_3d.append(FractureFamily(
+                            orientation_mean=config['dip'],
+                            orientation_std=10.0,  # Desvio padrão fixo
+                            dip_dir_mean=config['dip_dir'],
+                            dip_dir_std=20.0,  # Desvio padrão fixo
+                            weight=config['weight']
+                        ))
                 
                 # Preparar parâmetros
                 if 'length_fit' in st.session_state.analysis_results:
@@ -1120,26 +1400,32 @@ with tab5:
                 else:
                     params_3d = {
                         'exponent': 2.0,
-                        'x_min': 0.01,
+                        'x_min': 10.0, #mm #0.01,
                         'coefficient': 100,
                         'dip_mean': dip_mean,
                         'dip_dir_mean': dip_dir_mean
                     }
-                
+                # # Gerar DFN 3D
+                # dfn_3d = generator.generate_3d_dfn(
+                #     params=params_3d,
+                #     domain_size=(domain_x, domain_y, domain_z),
+                #     n_fractures=n_fractures_3d
+                # )
+
                 # Gerar DFN 3D
                 dfn_3d = generator.generate_3d_dfn(
                     params=params_3d,
                     domain_size=(domain_x, domain_y, domain_z),
-                    n_fractures=n_fractures_3d
+                    n_fractures=n_fractures_3d,
+                    families=families_3d
                 )
                 
-                # Converter para DataFrame e adicionar família se necessário
                 dfn_3d_df = pd.DataFrame([f.to_dict() for f in dfn_3d])
                 
-                # ACTION: Atribuir famílias aleatórias se coloração por família ativada
-                if st.session_state.color_by_sets and st.session_state.num_sets:
-                    np.random.seed(random_seed_3d)
-                    dfn_3d_df['family'] = np.random.randint(0, st.session_state.num_sets, len(dfn_3d_df))
+                # # ACTION: Atribuir famílias aleatórias se coloração por família ativada
+                # if st.session_state.color_by_sets and st.session_state.num_sets:
+                #     np.random.seed(random_seed_3d)
+                #     dfn_3d_df['family'] = np.random.randint(0, st.session_state.num_sets, len(dfn_3d_df))
                 
                 # Salvar no estado
                 st.session_state.dfn_3d = dfn_3d
@@ -1163,43 +1449,162 @@ with tab5:
             domain_size = st.session_state.dfn_3d_domain
             
             with st.spinner("Atualizando visualização DFN 3D..."):
-                # ACTION: Chamar plot_dfn_3d com parâmetros do estado
+                # Chamar plot_dfn_3d com parâmetros do estado
                 fig_dfn_3d = viz.plot_dfn_3d(
                     fractures_df=st.session_state.dfn_3d_df,
                     domain_size=domain_size,
                     shape_mode=st.session_state.viz_mode,
                     show_centers=st.session_state.show_centers_3d,
                     show_numbers=st.session_state.show_numbers_3d,
-                    color_by_family=st.session_state.color_by_sets,
+                    color_by_family=st.session_state.get('color_by_family_3d', False),
                     family_col='family'
                 )
                 
                 st.plotly_chart(fig_dfn_3d, width='stretch')
                 
-                # Estatísticas
+                # ========== ESTATÍSTICAS ==========
                 dfn_3d_df = st.session_state.dfn_3d_df
                 dfn_3d_df['area'] = np.pi * dfn_3d_df['radius']**2
 
                 st.divider()
-                col1, col2, col3 = st.columns(3)
+                st.subheader("📊 Estatísticas do DFN 3D") # Estatísticas gerais
+
+                col1, col2, col3, col4 = st.columns(4)
                 volume = domain_size[0] * domain_size[1] * domain_size[2]
 
                 with col1:
                     st.metric("Total de fraturas", len(dfn_3d_df))
-                    st.metric("Área total (m²)", f"{dfn_3d_df['area'].sum():.2f}")
+                    st.metric("Área total (mm²)", f"{dfn_3d_df['area'].sum():.2f}")
                 
                 with col2:
-                    st.metric("P32 (m²/m³)", f"{dfn_3d_df['area'].sum() / volume:.3f}")
-                    st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean() * 1000:.2f}")
+                    p32 = dfn_3d_df['area'].sum() / volume
+                    st.metric("P32 (mm²/mm³)", f"{p32:.5f}")
+                    st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean():.3f}")
+                    #st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean() * 1000:.2f}")
                 
                 with col3:
                     porosity_3d = (dfn_3d_df['aperture'] * dfn_3d_df['area']).sum() / volume
                     st.metric("Porosidade 3D (%)", f'{porosity_3d * 100:.3f}')
-                    k_estimate = (dfn_3d_df['aperture']**3).mean() / 12
+                    st.metric("Raio médio (mm)", f"{dfn_3d_df['radius'].mean():.2f}")
+
+                with col4:
+                    k_estimate = (dfn_3d_df['aperture']**3).mean() / 12 # Permeabilidade estimada (lei cúbica)
                     st.metric("Permeabilidade (mD)", f"{k_estimate * 1e12:.2f}", 
                                  help="Estimativa simplificada de permeabilidade (k = b³/12)")
-        
-        # ACTION: Renderizar visualização (reativo aos widgets)
+                    
+                    # Intensidade linear P10 equivalente
+                    p10_equiv = dfn_3d_df['radius'].sum() * 2 / volume**(1/3)
+                    st.metric("P10 equiv. (1/mm)", f"{p10_equiv:.4f}")
+
+                # Estatísticas por família
+                if 'family' in dfn_3d_df.columns and st.session_state.get('color_by_family_3d', False):
+                    st.divider()
+                    st.subheader("📈 Estatísticas por Família")
+                    
+                    family_stats = []
+                    for family_id in sorted(dfn_3d_df['family'].unique()):
+                        family_data = dfn_3d_df[dfn_3d_df['family'] == family_id]
+                        
+                        family_stats.append({
+                            'Família': f'Set {family_id + 1}',
+                            'N° Fraturas': len(family_data),
+                            'Percentual (%)': f"{len(family_data)/len(dfn_3d_df)*100:.1f}",
+                            'Raio Médio (mm)': f"{family_data['radius'].mean():.2f}",
+                            'Dip Médio (°)': f"{family_data['dip'].mean():.1f}",
+                            'Dip Dir Médio (°)': f"{family_data['dip_direction'].mean():.1f}",
+                            'Área Total (mm²)': f"{family_data['area'].sum():.2f}"
+                        })
+                    
+                    stats_df = pd.DataFrame(family_stats)
+                    st.dataframe(stats_df, hide_index=True, width='stretch')
+                    
+                    # Gráfico de distribuição por família
+                    col_chart1, col_chart2 = st.columns(2)
+                    
+                    with col_chart1:
+                        fig_pie = go.Figure(data=[go.Pie(
+                            labels=[s['Família'] for s in family_stats],
+                            values=[int(s['N° Fraturas']) for s in family_stats],
+                            marker=dict(colors=['#E74C3C', '#3498DB', '#2ECC71', '#F39C12'][:len(family_stats)])
+                        )])
+                        fig_pie.update_layout(
+                            title="Distribuição de Fraturas por Família",
+                            height=300
+                        )
+                        st.plotly_chart(fig_pie, width='stretch')
+                    
+                    with col_chart2:
+                        # Diagrama de roseta estereográfico simplificado
+                        fig_stereo = go.Figure()
+                        
+                        colors_stereo = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12']
+                        
+                        for family_id in sorted(dfn_3d_df['family'].unique()):
+                            family_data = dfn_3d_df[dfn_3d_df['family'] == family_id]
+                            
+                            fig_stereo.add_trace(go.Scatterpolar(
+                                r=[1] * len(family_data),
+                                theta=family_data['dip_direction'].values,
+                                mode='markers',
+                                marker=dict(
+                                    size=8,
+                                    color=colors_stereo[family_id % len(colors_stereo)],
+                                    opacity=0.6
+                                ),
+                                name=f'Set {family_id + 1}'
+                            ))
+                        
+                        fig_stereo.update_layout(
+                            title="Orientações por Família (Dip Direction)",
+                            polar=dict(
+                                radialaxis=dict(visible=False),
+                                angularaxis=dict(direction="clockwise", rotation=90)
+                            ),
+                            height=300
+                        )
+                        st.plotly_chart(fig_stereo, width='stretch')
+                
+                # Distribuições estatísticas
+                st.divider()
+                st.subheader("📊 Distribuições Estatísticas")
+                
+                col_hist1, col_hist2 = st.columns(2)
+                
+                with col_hist1:
+                    # Histograma de raios
+                    fig_radius = go.Figure()
+                    fig_radius.add_trace(go.Histogram(
+                        x=dfn_3d_df['radius'],
+                        nbinsx=30,
+                        marker_color='#3498DB',
+                        opacity=0.75
+                    ))
+                    fig_radius.update_layout(
+                        title="Distribuição de Raios",
+                        xaxis_title="Raio (mm)",
+                        yaxis_title="Frequência",
+                        height=300
+                    )
+                    st.plotly_chart(fig_radius, width='stretch')
+                
+                with col_hist2:
+                    # Histograma de aberturas
+                    fig_aperture = go.Figure()
+                    fig_aperture.add_trace(go.Histogram(
+                        x=dfn_3d_df['aperture'],
+                        nbinsx=30,
+                        marker_color='#E74C3C',
+                        opacity=0.75
+                    ))
+                    fig_aperture.update_layout(
+                        title="Distribuição de Aberturas",
+                        xaxis_title="Abertura (mm)",
+                        yaxis_title="Frequência",
+                        height=300
+                    )
+                    st.plotly_chart(fig_aperture, width='stretch')
+
+        # Renderizar visualização (reativo aos widgets)
         render_current_view()
             
     else:
