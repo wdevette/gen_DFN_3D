@@ -24,6 +24,8 @@ from modules.orientation_clustering import (
     auto_determine_n_sets
 )
 
+
+
 # Configuração da página
 st.set_page_config(
     page_title="Análise de Fraturas - Marrett & Ortega",
@@ -438,9 +440,9 @@ with tab1:
                 with col1:
                     st.metric("Fraturas", len(scanline_data))
                 with col2:
-                    st.metric("Espaçamento médio (m)", f"{scanline_data['length'].mean():.3f}")
+                    st.metric("Espaçamento médio (m)", f"{scanline_data['length'].mean():.3f}".replace('.', ','))
                 with col3:
-                    st.metric("Abertura média (mm)", f"{scanline_data['aperture'].mean()*1000:.2f}")
+                    st.metric("Abertura média (mm)", f"{scanline_data['aperture'].mean()*1000:.2f}".replace('.', ','))
     
     # Seção de comparação (aparece apenas se ambos os dados forem carregados)
     st.divider()
@@ -507,7 +509,7 @@ with tab2:
                 #st.divider()
                 fitter = PowerLawFitter()
                 viz = FractureVisualizer()
-                st.markdown('chegou')
+                #st.markdown('chegou')
                 # Obter valores de filtro
                 if 'l_min_framfrat' in st.session_state:
                     l_min = st.session_state.l_min_framfrat
@@ -523,7 +525,8 @@ with tab2:
                 results = {}
                 
                 
-                col1, col2, col3 = st.columns(3)
+                #col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
                 with col1: # Comprimento
                     st.subheader("Comprimento (l)")
                     if st.session_state.framfrat_data is not None:
@@ -540,27 +543,9 @@ with tab2:
                         )
 
                         # força tema escuro sem perder tuas configs essenciais
-                        fig_l = force_dark_plotly_layout(fig_l)
+                        #fig_l = force_dark_plotly_layout(fig_l)
                         st.plotly_chart(fig_l, width='stretch')
                         
-                        # Mostrar métricas apropriadas baseadas no método
-                        if fit_method == "OLS":
-                            st.info(f"""
-                            **Parâmetros ajustados:**
-                            - Expoente (e): {l_fit['exponent']:.3f}
-                            - Coeficiente (h): {l_fit['coefficient']:.2e}
-                            - R²: {l_fit['r_squared']:.3f}
-                            - p-valor: {l_fit['p_value']:.4f}
-                            """)
-                        else:  # MLE
-                            st.info(f"""
-                            **Parâmetros ajustados:**
-                            - Expoente ($\\alpha$): {l_fit['exponent']:.3f}
-                            - Coeficiente: {l_fit['coefficient']:.2e}
-                            - Estatística KS: {l_fit['ks_statistic']:.3f}
-                            - Erro padrão: {l_fit['sigma']:.3f}
-                            """)
-                
                 # Abertura
                 with col2:
                     st.subheader("Abertura (b)")
@@ -577,28 +562,48 @@ with tab2:
                             b_fit
                         )
 
-                        fig_b = force_dark_plotly_layout(fig_b)
+                        #fig_b = force_dark_plotly_layout(fig_b)
                         st.plotly_chart(fig_b, width='stretch')
-                        
-                        # Mostrar métricas apropriadas
-                        if fit_method == "OLS":
-                            st.info(f"""
-                            **Parâmetros ajustados:**
-                            - Expoente (c): {b_fit['exponent']:.3f}
-                            - Coeficiente (a): {b_fit['coefficient']:.2e}
-                            - R²: {b_fit['r_squared']:.3f}
-                            - p-valor: {b_fit['p_value']:.4f}
-                            """)
-                        else:  # MLE
-                            st.info(f"""
-                            **Parâmetros ajustados:**
-                            - Expoente ($\\alpha$): {b_fit['exponent']:.3f}
-                            - Coeficiente: {b_fit['coefficient']:.2e}
-                            - Estatística KS: {b_fit['ks_statistic']:.3f}
-                            - Erro padrão: {b_fit['sigma']:.3f}
-                            """)
+                
+                col_comp, col_med, col_abertura = st.columns([1, 2, 1], gap='large')
+                with col_comp:  # Mostrar métricas apropriadas baseadas no método: "Comprimento" 
+                    if fit_method == "OLS":
+                        st.info(f"""
+                        **Parâmetros ajustados:**
+                        - Expoente (e): {l_fit['exponent']:.3f}
+                        - Coeficiente (h): {l_fit['coefficient']:.2e}
+                        - R²: {l_fit['r_squared']:.3f}
+                        - p-valor: {l_fit['p_value']:.4f}
+                        """)
+                    else:  # MLE
+                        st.info(f"""
+                        **Parâmetros ajustados:**
+                        - Expoente ($\\alpha$): {l_fit['exponent']:.3f}
+                        - Coeficiente: {l_fit['coefficient']:.2e}
+                        - Estatística KS: {l_fit['ks_statistic']:.3f}
+                        - Erro padrão: {l_fit['sigma']:.3f}
+                        """)
+
+                with col_abertura: # Mostrar métricas apropriadas: "Aberturas"
+                    if fit_method == "OLS":
+                        st.info(f"""
+                        **Parâmetros ajustados:**
+                        - Expoente (c): {b_fit['exponent']:.3f}
+                        - Coeficiente (a): {b_fit['coefficient']:.2e}
+                        - R²: {b_fit['r_squared']:.3f}
+                        - p-valor: {b_fit['p_value']:.4f}
+                        """)
+                    else:  # MLE
+                        st.info(f"""
+                        **Parâmetros ajustados:**
+                        - Expoente ($\\alpha$): {b_fit['exponent']:.3f}
+                        - Coeficiente: {b_fit['coefficient']:.2e}
+                        - Estatística KS: {b_fit['ks_statistic']:.3f}
+                        - Erro padrão: {b_fit['sigma']:.3f}
+                        """)
                 
                 # Relação b-l
+                col3, col4  = st.columns(2)
                 with col3:
                     st.subheader("Relação b-l")
                     if st.session_state.framfrat_data is not None:
@@ -614,7 +619,7 @@ with tab2:
                             bl_fit
                         )
 
-                        fig_bl = force_dark_plotly_layout(fig_bl)
+                        #fig_bl = force_dark_plotly_layout(fig_bl)
                         st.plotly_chart(fig_bl, width='stretch')
                         
                         st.info(f"""
@@ -624,7 +629,10 @@ with tab2:
                         - R²: {bl_fit['r_squared']:.3f}
                         - p-valor: {bl_fit['p_value']:.4f}
                         """)
-                
+
+                with col4:
+                    st.markdown("")
+
                 # Salvar resultados
                 st.session_state.analysis_results = results
     
@@ -1478,23 +1486,23 @@ with tab5:
                 
                 with col2:
                     p32 = dfn_3d_df['area'].sum() / volume
-                    st.metric("P32 (mm²/mm³)", f"{p32:.5f}")
-                    st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean():.3f}")
+                    st.metric("P32 (mm²/mm³)", f"{p32:.5f}".replace(".", ","))
+                    st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean():.3f}".replace(".", ","))
                     #st.metric("Abertura média (mm)", f"{dfn_3d_df['aperture'].mean() * 1000:.2f}")
                 
                 with col3:
                     porosity_3d = (dfn_3d_df['aperture'] * dfn_3d_df['area']).sum() / volume
-                    st.metric("Porosidade 3D (%)", f'{porosity_3d * 100:.3f}')
-                    st.metric("Raio médio (mm)", f"{dfn_3d_df['radius'].mean():.2f}")
+                    st.metric("Porosidade 3D (%)", f'{porosity_3d * 100:.3f}'.replace(".", ","))
+                    st.metric("Raio médio (mm)", f"{dfn_3d_df['radius'].mean():.2f}".replace(".", ","))
 
                 with col4:
                     k_estimate = (dfn_3d_df['aperture']**3).mean() / 12 # Permeabilidade estimada (lei cúbica)
-                    st.metric("Permeabilidade (mD)", f"{k_estimate * 1e12:.2f}", 
+                    st.metric("Permeabilidade (mD)", f"{k_estimate * 1e12:.2f}".replace(".", ","), 
                                  help="Estimativa simplificada de permeabilidade (k = b³/12)")
                     
                     # Intensidade linear P10 equivalente
                     p10_equiv = dfn_3d_df['radius'].sum() * 2 / volume**(1/3)
-                    st.metric("P10 equiv. (1/mm)", f"{p10_equiv:.4f}")
+                    st.metric("P10 equiv. (1/mm)", f"{p10_equiv:.4f}".replace(".", ","))
 
                 # Estatísticas por família
                 if 'family' in dfn_3d_df.columns and st.session_state.get('color_by_family_3d', False):
@@ -1506,13 +1514,13 @@ with tab5:
                         family_data = dfn_3d_df[dfn_3d_df['family'] == family_id]
                         
                         family_stats.append({
-                            'Família': f'Set {family_id + 1}',
+                            'Família': f'Fam {family_id + 1}',
                             'N° Fraturas': len(family_data),
-                            'Percentual (%)': f"{len(family_data)/len(dfn_3d_df)*100:.1f}",
-                            'Raio Médio (mm)': f"{family_data['radius'].mean():.2f}",
-                            'Dip Médio (°)': f"{family_data['dip'].mean():.1f}",
-                            'Dip Dir Médio (°)': f"{family_data['dip_direction'].mean():.1f}",
-                            'Área Total (mm²)': f"{family_data['area'].sum():.2f}"
+                            'Percentual (%)': f"{len(family_data)/len(dfn_3d_df)*100:.1f}".replace(".", ","),
+                            'Raio Médio (mm)': f"{family_data['radius'].mean():.2f}".replace(".", ","),
+                            'Dip Médio (°)': f"{family_data['dip'].mean():.1f}".replace(".", ","),
+                            'Dip Dir Médio (°)': f"{family_data['dip_direction'].mean():.1f}".replace(".", ","),
+                            'Área Total (mm²)': f"{family_data['area'].sum():.2f}".replace(".", ",")
                         })
                     
                     stats_df = pd.DataFrame(family_stats)
@@ -1613,7 +1621,7 @@ with tab5:
 
 # Tab 6: Exportar
 with tab6:
-    st.header("ð💾 Exportação de Resultados")
+    st.header("💾 Exportação de Resultados")
     
     if st.session_state.data_loaded:
         exporter = ResultsExporter()

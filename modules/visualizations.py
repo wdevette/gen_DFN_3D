@@ -43,7 +43,8 @@ class FractureVisualizer:
             y=cumulative,
             mode='markers',
             name='Dados observados',
-            marker=dict(size=6, color='blue', symbol='circle'),
+            #marker=dict(size=6, color='blue', symbol='circle'),
+            marker=dict(size=6, color='rgba(31,119,180,1)', symbol='circle'),
             hovertemplate='Tamanho: %{x:.3f}<br>N(≥x): %{y}<extra></extra>'
         ))
         
@@ -60,7 +61,8 @@ class FractureVisualizer:
             y=y_fit,
             mode='lines',
             name=f"Ajuste: N = {fit_params['coefficient']:.1f} × x^(-{fit_params['exponent']:.2f})",
-            line=dict(color='red', width=2, dash='solid'),
+            #line=dict(color='red', width=2, dash='solid'),
+            line=dict(color='rgba(214,39,40,1)', width=2),
             hovertemplate='Tamanho: %{x:.3f}<br>N(≥x): %{y:.1f}<extra></extra>'
         ))
         
@@ -68,7 +70,8 @@ class FractureVisualizer:
         fig.add_vline(
             x=fit_params['x_min'],
             line_dash="dash",
-            line_color="green",
+            #line_color="green",
+            line_color="rgba(44,160,44,1)",  # verde legível
             annotation_text=f"x_min = {fit_params['x_min']:.3f}"
         )
         
@@ -85,8 +88,20 @@ class FractureVisualizer:
             yaxis_type='log',
             showlegend=True,
             legend=dict(x=0.6, y=0.95),
+
+            # --- FUNDOS NEUTROS ---
+            template=None,                 # remove plotly_white
+            paper_bgcolor='rgba(0,0,0,0)', # fundo transparente
+            plot_bgcolor='rgba(0,0,0,0)',  # fundo transparente
+
+            # --- CORES NEUTRAS DOS EIXOS ---
+            xaxis=dict(color='rgba(200,200,200,0.9)',      # texto dos eixos
+                    gridcolor='rgba(150,150,150,0.2)'), # grade suave
+            yaxis=dict(color='rgba(200,200,200,0.9)',
+                    gridcolor='rgba(150,150,150,0.2)'),
+
             hovermode='x unified',
-            template='plotly_white'
+            #template='plotly_white'
         )
         
         # Adicionar anotação com estatísticas
@@ -100,9 +115,13 @@ class FractureVisualizer:
             xref="paper", yref="paper",
             text=annotation_text,
             showarrow=False,
-            font=dict(size=12),
-            bgcolor="white",
-            bordercolor="black",
+            #font=dict(size=12),
+            # bgcolor="white",
+            # bordercolor="black",
+            font=dict(size=12, color="rgba(230,230,230,1)"),
+            bgcolor="rgba(0,0,0,0.5)",   # semitransparente, fica bom no claro e no escuro
+            bordercolor="rgba(255,255,255,0.5)",
+
             borderwidth=1
         )
         
@@ -145,6 +164,9 @@ class FractureVisualizer:
         # Cores padrão mais vibrantes para visualização 2D
         default_colors = ['#34495E', '#16A085', '#E67E22', '#8E44AD']
 
+        # Conjunto para rastrear quais famílias já tiveram a legenda exibida
+        plotted_families = set() 
+
         # Adicionar fraturas
         for i, frac in enumerate(fractures):
             # Determinar cor
@@ -154,6 +176,13 @@ class FractureVisualizer:
             else:
                 color = default_colors[i % len(default_colors)]
                 family_label = ""
+
+            # Lógica CORRIGIDA para exibir a legenda apenas uma vez por família
+            show_legend = False
+            if color_by_family and family_label and family_label not in plotted_families:
+                show_legend = True
+                plotted_families.add(family_label)
+
 
             # 1. Visualização da Fratura (Linha/Retângulo)
             if fracture_shape == 'lines':
@@ -166,8 +195,8 @@ class FractureVisualizer:
                         color=color,
                         width=max(2, frac.aperture * 0.5)  # Escala para mm
                     ),
-                    name=family_label if family_label and i < 3 else None,
-                    showlegend=(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
+                    name=family_label if family_label else None, #family_label if family_label and i < 3 else None,
+                    showlegend= show_legend, #(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
                     legendgroup=family_label,
                     hovertemplate=(
                         f'Fratura {i+1}<br>'
@@ -204,15 +233,19 @@ class FractureVisualizer:
                         frac.y1 + ny * half_aperture
                     ]
                     
+                    # Convertendo cor hexadecimal para RGBA para preenchimento
+                    r, g, b = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+                    fillcolor = f'rgba({r},{g},{b},0.6)'
+
                     fig.add_trace(go.Scatter(
                         x=x_rect,
                         y=y_rect,
                         mode='lines',
                         fill='toself',
-                        fillcolor=f'rgba{tuple(list(int(color[i:i+2], 16) for i in (1, 3, 5)) + [0.6])}',
+                        fillcolor=fillcolor,# f'rgba{tuple(list(int(color[i:i+2], 16) for i in (1, 3, 5)) + [0.6])}',
                         line=dict(color=color, width=2),
-                        name=family_label if family_label and i < 3 else None,
-                        showlegend=(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
+                        name=family_label if family_label else None, #family_label if family_label and i < 3 else None,
+                        showlegend=show_legend, #(color_by_family and i < len(set(f.family for f in fractures if hasattr(f, 'family')))),
                         legendgroup=family_label,
                         hovertemplate=(
                             f'Fratura {i+1}<br>'
