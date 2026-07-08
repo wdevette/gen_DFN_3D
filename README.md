@@ -155,11 +155,16 @@ $$F = \frac{l_{max}^{1-\alpha} - l_{min}^{1-\alpha}}{(1-\alpha) \cdot l_{max}^{1
 ```
 dfn-pro/
 ├── app.py                    # Aplicação principal Streamlit
+├── func_tools.py             # Funções auxiliares
 ├── requirements.txt          # Dependências Python
 ├── Dockerfile               # Container Docker
 ├── LICENSE                  # Licença MIT
 ├── README.md                # Este arquivo
 │
+├── assets/
+|   ├── fram.fract/svg
+|   ├── fram_fractt.png      #icon da web page do gen_DFN_3D
+|
 ├── modules/                 # Módulos Python
 │   ├── __init__.py
 │   ├── io_fractures.py      # Carregamento de dados
@@ -172,23 +177,19 @@ dfn-pro/
 │   ├── dfn_generator.py     # Gerador de DFN 2D/3D
 │   ├── visualizations.py    # Gráficos e plots
 │   ├── results_exporter.py  # Exportação de resultados
-│   └── func_tools.py        # Funções auxiliares
 │
-├── data/                    # Dados de exemplo
-│   ├── itapoama_fraturas.xlsx
-│   ├── itapoama_segmentos.xlsx
-│   └── exemplo_scanline.csv
+├── data/                    # Dados de exemplo para validação da dissertação
+|   ├── README.md            # Descrição dos dados usados para validação e dados ficticios
+│   ├── itapoama_fraturas.xlsx   # Tab7 validação da dissertação MUCHANGA (2025)
+│   ├── itapoama_segmentos.xlsx   # Tab8 validação dissertação MUCHANGA (2025)
+|   ├── dados_teste.xlsx     # Dados ficticios gerados para teste (gerado com IA)
 │
 ├── docs/                    # Documentação
-│   ├── images/
-│   ├── methodology.md
-│   ├── api_reference.md
-│   └── tutorials/
+│   ├── methodology.md       # Matodologia usada desdo o processamento até a geração de DFNs
 │
 └── tests/                   # Testes unitários
     ├── test_powerlaw.py
-    ├── test_bias_corrections.py
-    └── test_dfn_generator.py
+
 ```
 
 ---
@@ -292,9 +293,12 @@ Contribuições são bem-vindas! Por favor, leia [CONTRIBUTING.md](CONTRIBUTING.
 
 ## 🙏 Agradecimentos
 
+- A DEUS por tudo que fez, faz e fará por mim...
 - UFPE/PPGEC pelo suporte acadêmico
+- Prof. Igor Gomes (UFPE) & Prof. Tiago Miranda (UFPE) pela orientação conjunta.
 - Prof. Armando Muchanga pelos dados do FRAMFRAT
 - Comunidade open-source pelas bibliotecas utilizadas
+- A CAPES pelo apoio concedido.
 
 ---
 
