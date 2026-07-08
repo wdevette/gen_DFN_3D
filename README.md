@@ -6,7 +6,7 @@
 
 
 <p align="center">
-  <img src="docs/images/dfn_3d_example.png" alt="DFN 3D Example" width="600"/>
+  <img src="assets/dfn_3d_example.png" alt="DFN 3D Example" width="600"/>
 </p>
 
 ## 📋 Descrição
