@@ -1,4 +1,4 @@
-# 🌐 DFN-Pro: Modelagem 3D de Redes de Fraturas Discretas
+# 🌐 gen_DFN_3D: Modelagem 3D de Redes de Fraturas Discretas
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
@@ -11,17 +11,17 @@
 
 ## 📋 Descrição
 
-**DFN-Pro** é uma aplicação web open-source para modelagem estocástica de Redes de Fraturas Discretas (DFN) tridimensionais a partir de dados de afloramento. Desenvolvido como parte de dissertação de mestrado no Programa de Pós-Graduação em Engenharia Civil (PPGEC) da Universidade Federal de Pernambuco (UFPE).
+**gen_DFN_3D** é uma aplicação web open-source para modelagem estocástica de Redes de Fraturas Discretas (DFN) tridimensionais a partir de dados de afloramento. Desenvolvido como parte de dissertação de mestrado no Programa de Pós-Graduação em Engenharia Civil (PPGEC) da Universidade Federal de Pernambuco (UFPE).
 
 ### 🎯 Objetivo
 
 Fornecer uma ferramenta gratuita, acessível e cientificamente rigorosa para caracterização de reservatórios naturalmente fraturados, integrando:
 
-- Processamento de dados de imagens 2D (FRAMFRAT)
+- Processamento de dados de imagens 2D (FRAMFRAT) e 1D (scanline)
 - Análise estatística robusta (Power-Law, Fisher)
 - Validação mecânica (D-L Scaling)
 - Correções de vieses de amostragem
-- Geração de modelos DFN 3D
+- Geração de modelos DFN  2D e 3D
 
 ---
 
