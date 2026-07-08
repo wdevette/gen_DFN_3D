@@ -154,40 +154,40 @@ $$F = \frac{l_{max}^{1-\alpha} - l_{min}^{1-\alpha}}{(1-\alpha) \cdot l_{max}^{1
 
 ```
 dfn-pro/
-├── app.py                    # Aplicação principal Streamlit
-├── func_tools.py             # Funções auxiliares
-├── requirements.txt          # Dependências Python
-├── Dockerfile               # Container Docker
-├── LICENSE                  # Licença MIT
-├── README.md                # Este arquivo
+├── app.py                       # Aplicação principal Streamlit
+├── func_tools.py                # Funções auxiliares
+├── requirements.txt             # Dependências Python
+├── Dockerfile                   # Container Docker
+├── LICENSE                      # Licença MIT
+├── README.md                    # Este arquivo
 │
 ├── assets/
 |   ├── fram.fract/svg
-|   ├── fram_fractt.png      #icon da web page do gen_DFN_3D
+|   ├── fram_fractt.png           # icon da web page do gen_DFN_3D
 |
-├── modules/                 # Módulos Python
+├── modules/                      # Módulos Python
 │   ├── __init__.py
-│   ├── io_fractures.py      # Carregamento de dados
-│   ├── powerlaw_analysis.py # Análise power-law (OLS+MLE)
-│   ├── powerlaw_fits.py     # Ajustes de distribuição
+│   ├── io_fractures.py           # Carregamento de dados
+│   ├── powerlaw_analysis.py      # Análise power-law (OLS+MLE)
+│   ├── powerlaw_fits.py          # Ajustes de distribuição
 │   ├── orientation_clustering.py # Clustering de orientações
-│   ├── bias_corrections.py  # Correções de vieses
-│   ├── bias_visualizations.py # Visualizações de correções
-│   ├── intensity_spacing.py # Cálculo de intensidades
-│   ├── dfn_generator.py     # Gerador de DFN 2D/3D
-│   ├── visualizations.py    # Gráficos e plots
-│   ├── results_exporter.py  # Exportação de resultados
+│   ├── bias_corrections.py       # Correções de vieses
+│   ├── bias_visualizations.py    # Visualizações de correções
+│   ├── intensity_spacing.py      # Cálculo de intensidades
+│   ├── dfn_generator.py          # Gerador de DFN 2D/3D
+│   ├── visualizations.py         # Gráficos e plots
+│   ├── results_exporter.py       # Exportação de resultados
 │
-├── data/                    # Dados de exemplo para validação da dissertação
-|   ├── README.md            # Descrição dos dados usados para validação e dados ficticios
-│   ├── itapoama_fraturas.xlsx   # Tab7 validação da dissertação MUCHANGA (2025)
-│   ├── itapoama_segmentos.xlsx   # Tab8 validação dissertação MUCHANGA (2025)
-|   ├── dados_teste.xlsx     # Dados ficticios gerados para teste (gerado com IA)
+├── data/                         # Dados de exemplo para validação da dissertação
+|   ├── README.md                 # Descrição dos dados usados para validação e dados ficticios
+│   ├── itapoama_fraturas.xlsx    # Tabela 7 validação da dissertação MUCHANGA (2025)
+│   ├── itapoama_segmentos.xlsx   # Tabela 8 validação dissertação MUCHANGA (2025)
+|   ├── scanline_dataset.xlsx     # Dados ficticios gerados para teste (gerado com IA)
 │
-├── docs/                    # Documentação
-│   ├── methodology.md       # Matodologia usada desdo o processamento até a geração de DFNs
+├── docs/                         # Documentação
+│   ├── methodology.md            # Matodologia usada desdo o processamento até a geração de DFNs
 │
-└── tests/                   # Testes unitários
+└── tests/                        # Testes unitários
     ├── test_powerlaw.py
 
 ```
@@ -245,13 +245,13 @@ A metodologia foi validada com dados do afloramento de traquito da Praia de Itap
 ## 👨‍💻 Autor
 
 **Wagner José Devete**
-- 📧 Email: wagner.devete@ufpe.br
+- 📧 Email: wagner.devete@ufpe.br / wagnerdevete@gmail.com
 - 🎓 Mestrando em Engenharia Civil - UFPE
 - 🔬 Área: Reservatórios Naturalmente Fraturados
 
 ### Orientadores
-- **Prof. Dr. Armando Shinoda Muchanga** (Orientador)
-- **Prof. Dr. Leonardo José do Nascimento Guimarães** (Coorientador)
+- **Prof. Dr. Igor Gomes** (Orientador)
+- **Prof. Dr. Tiago Miranda** (Coorientador)
 
 ---
 
