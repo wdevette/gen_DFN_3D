@@ -14,7 +14,7 @@ Esta pasta contém dados de validação e exemplo para testar o gen_DFN_3D.
 - **Colunas**: ID_Segmento, ID_Fratura, Comprimento (mm), Orientação (graus)
 - **Fonte**: MUCHANGA (2025)
 
-### `scanline.csv`
+### `scanline_dataset.csv`
 - **Descrição**: Exemplo sintético de dados ficticios de scanline
 - **Colunas**: Posição (m), Comprimento (m), Abertura (mm), Orientação (°)
 
