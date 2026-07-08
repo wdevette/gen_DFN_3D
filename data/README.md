@@ -1,21 +1,21 @@
 # 📁 Dados de Exemplo
 
-Esta pasta contém dados de exemplo para testar o DFN-Pro.
+Esta pasta contém dados de validação e exemplo para testar o gen_DFN_3D.
 
 ## Arquivos
 
 ### `itapoama_fraturas.xlsx` (Tabela 7)
 - **Descrição**: 34 fraturas principais do afloramento de Itapoama
 - **Colunas**: ID_Fratura, Comprimento (mm), Abertura Média (mm)
-- **Fonte**: Muchanga (2025)
+- **Fonte**: MUCHANGA (2025)
 
 ### `itapoama_segmentos.xlsx` (Tabela 8)
 - **Descrição**: 53 segmentos lineares com orientações
 - **Colunas**: ID_Segmento, ID_Fratura, Comprimento (mm), Orientação (graus)
-- **Fonte**: Muchanga (2025)
+- **Fonte**: MUCHANGA (2025)
 
-### `exemplo_scanline.csv`
-- **Descrição**: Exemplo sintético de dados de scanline
+### `scanline.csv`
+- **Descrição**: Exemplo sintético de dados ficticios de scanline
 - **Colunas**: Posição (m), Comprimento (m), Abertura (mm), Orientação (°)
 
 ## Formato Esperado
@@ -37,6 +37,6 @@ Posição (m),Comprimento (m),Abertura (mm),Orientação (°)
 
 ## ⚠️ Notas
 
-- Os dados de Itapoama são propriedade de Muchanga (2025) e UFPE
+- Os dados de Itapoama são propriedade de MUCHANGA (2025) e UFPE
 - Use apenas para fins acadêmicos e de teste
 - Para uso comercial, consulte os autores
