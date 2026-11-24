@@ -1,44 +1,42 @@
-# DFN-Pro Dockerfile
-# Modelagem 3D de Redes de Fraturas Discretas
-
+# gen_DFN_3D — Modelagem 3D de Redes de Fraturas Discretas
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
+# Dependências do sistema
+# (libgl1 substitui libgl1-mesa-glx, que não existe mais nas imagens Debian atuais;
+#  curl é necessário para o HEALTHCHECK)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements e instalar dependências Python
+# Dependências Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código da aplicação
-COPY app.py .
+# Código da aplicação (func_tools.py e assets/ são usados pelo app.py)
+COPY app.py func_tools.py ./
 COPY modules/ ./modules/
 COPY data/ ./data/
+COPY assets/ ./assets/
 
-# Configurar Streamlit
-RUN mkdir -p ~/.streamlit
-RUN echo "\
-[server]\n\
-headless = true\n\
-port = 8501\n\
-enableCORS = false\n\
-\n\
-[theme]\n\
-base = 'dark'\n\
-primaryColor = '#2c7be5'\n\
-" > ~/.streamlit/config.toml
+# Configuração do Streamlit
+RUN mkdir -p /root/.streamlit && printf '%s\n' \
+    '[server]' \
+    'headless = true' \
+    'port = 8501' \
+    'enableCORS = false' \
+    '' \
+    '[theme]' \
+    "base = 'dark'" \
+    "primaryColor = '#2c7be5'" \
+    > /root/.streamlit/config.toml
 
-# Expor porta
 EXPOSE 8501
 
-# Healthcheck
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-# Comando de entrada
 ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
