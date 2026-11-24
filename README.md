@@ -62,8 +62,8 @@ Fornecer uma ferramenta gratuita, acessível e cientificamente rigorosa para car
 ### Via pip
 ```bash
 # Clonar repositório
-git clone https://github.com/wagnerdevete/dfn-pro.git
-cd dfn-pro
+git clone https://github.com/wdevette/gen_DFN_3D.git
+cd gen_DFN_3D
 
 # Criar ambiente virtual
 python -m venv venv
