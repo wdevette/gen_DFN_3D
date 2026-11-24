@@ -2233,7 +2233,7 @@ with tab4:
                         
                         with col_auto2:
                             try:
-                                from orientation_clustering import cluster_orientations_2d, extract_orientation_stats
+                                from modules.orientation_clustering import cluster_orientations_2d, extract_orientation_stats
                                 
                                 orientations = st.session_state.framfrat_data['orientation'].dropna().values
                                 
