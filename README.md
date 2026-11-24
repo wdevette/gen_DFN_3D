@@ -79,10 +79,24 @@ streamlit run app.py
 ```
 
 ### Via Docker
+
+Pré-requisito: [Docker](https://docs.docker.com/get-docker/) instalado.
+
 ```bash
-docker pull wagnerdevete/dfn-pro:latest
-docker run -p 8501:8501 wagnerdevete/dfn-pro
+# 1. Clonar o repositório
+git clone https://github.com/wdevette/gen_DFN_3D.git
+cd gen_DFN_3D
+
+# 2. Construir a imagem
+docker build -t gen_dfn_3d .
+
+# 3. Executar o container
+docker run -p 8501:8501 gen_dfn_3d
 ```
+
+Depois, acesse a aplicação no navegador em **http://localhost:8501**.
+
+Para encerrar, pressione `Ctrl + C` no terminal ou execute `docker stop <id_do_container>`.
 
 ---
 
